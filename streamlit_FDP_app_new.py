@@ -261,9 +261,15 @@ for k in fdp_topic_map.keys():
 feature_names = list(fdp_topic_map.keys())
 X = pd.DataFrame([scores])
 
-# Predictions
-prediction = classifier.predict(X)[0]
+# Predictions with custom threshold
+#prediction = classifier.predict(X)[0] --this uses 50% threshold
+threshold = 0.03  # 3%
 probability = classifier.predict_proba(X)[0][1]
+
+if probability > threshold:
+    prediction = 1
+else:
+    prediction = 0
 
 # Top 3 subdomains
 top_subdomains = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:3]
