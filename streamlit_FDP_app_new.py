@@ -266,7 +266,7 @@ X = pd.DataFrame([scores_with_avg])
 
 # Predictions with custom threshold
 #prediction = classifier.predict(X)[0] --this uses 50% threshold
-threshold = 0.03  # 3%
+threshold = 0.3  # 30%
 probability = classifier.predict_proba(X)[0][1]
 
 if probability > threshold:
