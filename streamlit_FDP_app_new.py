@@ -9,7 +9,7 @@ st.set_page_config(page_title="FDP TNA Recommender", page_icon="🎯", layout="w
 # Cached loading of model
 @st.cache_resource
 def load_model():
-    with open("tna_model1.pkl", "rb") as f:
+    with open("tna_model_with_avg.pkl", "rb") as f:
         return pickle.load(f)
 
 classifier = load_model()
@@ -259,7 +259,10 @@ for k in fdp_topic_map.keys():
 
 # Prepare feature vector
 feature_names = list(fdp_topic_map.keys())
-X = pd.DataFrame([scores])
+average_score = np.mean(list(scores.values()))
+scores_with_avg = scores.copy()
+scores_with_avg["AVG_TNA"] = average_score
+X = pd.DataFrame([scores_with_avg])
 
 # Predictions with custom threshold
 #prediction = classifier.predict(X)[0] --this uses 50% threshold
@@ -319,17 +322,35 @@ if domains_over_8 >= 2:
 # Display prediction
 st.subheader("🔍 Prediction Results")
 if prediction == 1:
-    st.success(f"High FDP Need: ✅ YES (confidence: {probability*100:.1f}%)")
+    st.success(f"Model predicts High FDP Need: ✅ YES (confidence: {probability*100:.1f}%)")
 else:
-    st.info(f"High FDP Need: 🚫 NO (confidence: {probability*100:.1f}%)")
+    st.info(f"Model predicts High FDP Need: 🚫 NO (confidence: {probability*100:.1f}%)")
+
+
+# Show rule-based on AVG_TNA
+st.subheader("🧮 Average-based Decision")
+if average_score > 3:
+    st.success(f"📈 Based on average TNA score ({average_score:.2f}) > 3: High FDP Need ✅ YES")
+else:
+    st.info(f"📉 Based on average TNA score ({average_score:.2f}) ≤ 3: 🚫 NO")
+
+# --- Final recommendation ---
+st.subheader("🚦 Final Recommendation")
+if prediction == 1 and average_score > 3:
+    st.success("✅ FINAL DECISION: YES (both model & average agree on high FDP need)")
+elif prediction == 0 and average_score < 3:
+    st.info("🚫 FINAL DECISION: NO (both model & average agree on low FDP need)")
+else:
+    st.warning("⚠️ FINAL DECISION: REVIEW NEEDED (model and average disagree, needs expert review)")
 
 # Top 3 focus areas
 st.subheader("🏆 Top 3 Focus Areas with Suggested FDP Topics")
 for subdomain, score in top_subdomains:
-    st.markdown(f"### 📌 {subdomain} (Score: {score})")
-    st.write("Recommended FDP Topics:")
-    for topic in fdp_topic_map[subdomain]:
-        st.markdown(f"- {topic}")
+    if subdomain != "AVG_TNA":  # skip average in display
+       st.markdown(f"### 📌 {subdomain} (Score: {score})")
+       st.write("Recommended FDP Topics:")
+       for topic in fdp_topic_map[subdomain]:
+           st.markdown(f"- {topic}")
 
 # Rule-based FDPs
 if rule_based_fdps:
@@ -338,12 +359,14 @@ if rule_based_fdps:
         st.markdown(f"✅ **{fdp}** _(triggered by: {rule})_")
 else:
     st.info("No special rules triggered. Adjust sliders to explore tailored FDPs.")
+
 # Feature importances
 st.subheader("🚀 Feature Importances in the Model")
 
 if hasattr(classifier, "feature_importances_"):
-    feature_names = list(fdp_topic_map.keys())
+    feature_names = list(fdp_topic_map.keys())+ ["AVG_TNA"]
     importances = classifier.feature_importances_
+
     # Create DataFrame
     importance_df = pd.DataFrame({
         "Feature": feature_names,
@@ -373,3 +396,4 @@ if hasattr(classifier, "feature_importances_"):
     )
 else:
     st.warning("This model does not provide feature importances.")
+
